@@ -10,14 +10,13 @@ services:
       context: .
       dockerfile: Dockerfile
     environment:
-      DSN: "host=glowbyte-pg user=${POSTGRES_USER} password=${POSTGRES_PASSWORD} dbname=${POSTGRES_DB} port=5432 sslmode=disable TimeZone=Europe/Moscow"
+      DSN: "host=glowbyte-pg user=postgres password=${POSTGRES_PASSWORD} dbname=${POSTGRES_DB} port=5432 sslmode=disable TimeZone=Europe/Moscow"
   postgres:
     container_name: glowbyte-pg
     image: postgres:latest
     restart: unless-stopped
     environment:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_DB: ${POSTGRES_DB}
     ports:
       - 5432:5432
@@ -26,7 +25,7 @@ services:
     command: >
       -c work_mem=256MB -c maintenance_work_mem=256MB -c max_wal_size=10GB -c max_connections=500
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -d $${POSTGRES_DB} -U $${POSTGRES_USER}" ]
+      test: [ "CMD-SHELL", "pg_isready -d $${POSTGRES_DB} -U postgres" ]
       interval: 1s
       timeout: 5s
       retries: 10
