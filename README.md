@@ -15,11 +15,20 @@
 ## Установка Postgres
 
 Конфигурация сервисов `postgres` и `pgadmin` описана в `docker-compose.yml`.
+Так же есть сервис приложения на Golang для заполнения бд тестовыми данными.
 
 ### Запуск
 
+Только `postgres` и `pgadmin`:
+
 ```shell
-$ docker compose up
+docker compose up
+```
+
+С заполнение базы данных:
+
+```shell
+docker compose --profile seed up --build
 ```
 
 После запуска `pgadmin` будет доступен на [localhost:5050](http://localhost:5050)
