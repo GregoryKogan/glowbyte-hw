@@ -2,3 +2,4 @@
 docker/
 .env
 dump*.sql
+*.tar

@@ -77,3 +77,33 @@ docker exec -t glowbyte-pg pg_dumpall -c -U postgres > dump_`date +%Y-%m-%d"_"%H
 
 cat $(ls dump*.sql -rt created | head -n1) | docker exec -i glowbyte-pg psql -U postgres
 ```
+
+### File System Level Backup
+
+> The backup strategy is to directly copy the files that PostgreSQL uses to store the data in the database. You can use whatever method you prefer for doing file system backups.
+
+#### Особенности
+
+- Сервер базы данных должен быть выключен и при создании бекапа, и при восстановлении.
+- Работает только для полного резервного копирования и восстановления всего кластера.
+- Размер файла обычно больше, чем у SQL dump, но процесс может быть быстрее.
+
+#### Backup
+
+Пример из [документации](https://www.postgresql.org/docs/current/backup-file.html):
+
+```shell
+tar -cf backup.tar /usr/local/pgsql/data
+```
+
+Поскольку в этом проекте используется Docker, volume `/var/lib/postgresql/data` и так прокинут на хост в директорию `./docker/pgdata`. Так что можно работать с ним:
+
+```shell
+tar -cf backup.tar ./docker/pgdata
+```
+
+#### Restore
+
+```shell
+tar -xzf backup.tar -C .
+```
