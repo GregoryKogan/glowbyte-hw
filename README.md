@@ -1,7 +1,29 @@
 # glowbyte-hw
 
 - [Задания](#задания)
+- [Установка Postgres](#установка-postgres)- [Задания](#задания)
 - [Установка Postgres](#установка-postgres)
+  - [Запуск](#запуск)
+  - [Шаблон `.env`](#шаблон-env)
+- [Backup \& Restore](#backup--restore)
+  - [SQL dump](#sql-dump)
+    - [Особенности](#особенности)
+    - [Backup](#backup)
+    - [Restore](#restore)
+  - [File System Level Backup](#file-system-level-backup)
+    - [Особенности](#особенности-1)
+    - [Backup](#backup-1)
+    - [Restore](#restore-1)
+  - [Continuous Archiving and Point-in-Time Recovery (PITR)](#continuous-archiving-and-point-in-time-recovery-pitr)
+    - [Особенности](#особенности-2)
+- [VACUUM, VACUUM FULL, ANALYZE](#vacuum-vacuum-full-analyze)
+  - [VACUUM](#vacuum)
+  - [VACUUM FULL](#vacuum-full)
+  - [ANALYZE](#analyze)
+- [Блокировки](#блокировки)
+  - [Table-Level Locks](#table-level-locks)
+  - [Row-Level Locks](#row-level-locks)
+  - [Deadlocks](#deadlocks)
 
 ## Задания
 
