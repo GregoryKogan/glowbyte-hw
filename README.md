@@ -1,7 +1,6 @@
 # glowbyte-hw
 
 - [Задания](#задания)
-- [Установка Postgres](#установка-postgres)- [Задания](#задания)
 - [Установка Postgres](#установка-postgres)
   - [Запуск](#запуск)
   - [Шаблон `.env`](#шаблон-env)
@@ -24,6 +23,8 @@
   - [Table-Level Locks](#table-level-locks)
   - [Row-Level Locks](#row-level-locks)
   - [Deadlocks](#deadlocks)
+- [MVCC](#mvcc)
+  - [Transaction Isolation](#transaction-isolation)
 
 ## Задания
 
@@ -213,3 +214,38 @@ PostgreSQL предоставляет различные режимы блоки
 ### Deadlocks
 
 > The use of explicit locking can increase the likelihood of deadlocks, wherein two (or more) transactions each hold locks that the other wants. For example, if transaction 1 acquires an exclusive lock on table A and then tries to acquire an exclusive lock on table B, while transaction 2 has already exclusive-locked table B and now wants an exclusive lock on table A, then neither one can proceed. PostgreSQL automatically detects deadlock situations and resolves them by aborting one of the transactions involved, allowing the other(s) to complete. (Exactly which transaction will be aborted is difficult to predict and should not be relied upon.)
+
+## MVCC
+
+Документация: [postgresql.org/docs/mvcc](https://www.postgresql.org/docs/current/mvcc.html)
+
+> PostgreSQL provides a rich set of tools for developers to manage concurrent access to data. Internally, data consistency is maintained by using a multiversion model (Multiversion Concurrency Control, MVCC). This means that each SQL statement sees a snapshot of data (a database version) as it was some time ago, regardless of the current state of the underlying data. This prevents statements from viewing inconsistent data produced by concurrent transactions performing updates on the same data rows, providing transaction isolation for each database session. MVCC, by eschewing the locking methodologies of traditional database systems, minimizes lock contention in order to allow for reasonable performance in multiuser environments.
+
+Основное преимущество использования модели управления параллелизмом MVCC вместо блокировки заключается в том, что в MVCC блокировки, полученные для запроса (чтения) данных, не конфликтуют с блокировками, полученными для записи данных, и поэтому чтение никогда не блокирует запись, а запись никогда не блокирует чтение.
+
+Средства блокировки на уровне таблиц и строк также доступны в PostgreSQL для приложений, которые обычно не нуждаются в полной изоляции транзакций и предпочитают явно управлять конкретными конфликтными точками. Однако правильное использование MVCC, как правило, обеспечивает более высокую производительность, чем блокировки.
+
+### Transaction Isolation
+
+Стандарт SQL определяет четыре уровня изоляции транзакций. Наиболее строгим является Serializable, который определяется стандартом в параграфе, в котором говорится, что любое одновременное выполнение набора сериализуемых транзакций гарантированно приведет к тому же эффекту, что и выполнение их по очереди в определенном порядке. Остальные три уровня определяются в терминах явлений, возникающих в результате взаимодействия между параллельными транзакциями, которые не должны происходить на каждом уровне. В стандарте отмечается, что из-за определения Serializable ни одно из этих явлений не возможно на этом уровне.
+
+К явлениям, которые запрещены на различных уровнях, относятся:
+
+- `dirty read`  
+  A transaction reads data written by a concurrent uncommitted transaction.
+- `nonrepeatable read`  
+  A transaction re-reads data it has previously read and finds that data has been modified by another transaction (that committed since the initial read).
+- `phantom read`  
+  A transaction re-executes a query returning a set of rows that satisfy a search condition and finds that the set of rows satisfying the condition has changed due to another recently-committed transaction.
+- `serialization anomaly`  
+  The result of successfully committing a group of transactions is inconsistent with all possible orderings of running those transactions one at a time.
+
+![Transaction Isolation Levels](assets/Transaction%20Isolation%20Levels.png)
+
+> In PostgreSQL, you can request any of the four standard transaction isolation levels, but internally only three distinct isolation levels are implemented, i.e., PostgreSQL's Read Uncommitted mode behaves like Read Committed. This is because it is the only sensible way to map the standard isolation levels to PostgreSQL's multiversion concurrency control architecture.
+
+> To set the transaction isolation level of a transaction, use the command SET TRANSACTION.
+
+Документация команды `SET TRANSACTION`: [postgresql.org/docs/sql-set-transaction](https://www.postgresql.org/docs/current/sql-set-transaction.html)
+
+> **IMPORTANT**: Some PostgreSQL data types and functions have special rules regarding transactional behavior. In particular, changes made to a sequence (and therefore the counter of a column declared using serial) are immediately visible to all other transactions and are not rolled back if the transaction that made the changes aborts. See Section 9.17 and Section 8.1.4.
