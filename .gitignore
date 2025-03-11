@@ -1,3 +1,4 @@
 .vscode
 docker/
 .env
+dump*.sql
