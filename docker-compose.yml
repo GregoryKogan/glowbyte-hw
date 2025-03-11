@@ -1,4 +1,16 @@
 services:
+  app:
+    container_name: glowbyte-seeder
+    restart: no
+    profiles: [ seed ]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      DSN: "host=glowbyte-pg user=${POSTGRES_USER} password=${POSTGRES_PASSWORD} dbname=${POSTGRES_DB} port=5432 sslmode=disable TimeZone=Europe/Moscow"
   postgres:
     container_name: glowbyte-pg
     image: postgres:latest
