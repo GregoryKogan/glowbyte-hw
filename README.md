@@ -249,3 +249,34 @@ PostgreSQL предоставляет различные режимы блоки
 Документация команды `SET TRANSACTION`: [postgresql.org/docs/sql-set-transaction](https://www.postgresql.org/docs/current/sql-set-transaction.html)
 
 > **IMPORTANT**: Some PostgreSQL data types and functions have special rules regarding transactional behavior. In particular, changes made to a sequence (and therefore the counter of a column declared using serial) are immediately visible to all other transactions and are not rolled back if the transaction that made the changes aborts. See Section 9.17 and Section 8.1.4.
+
+## Сервисные таблицы
+
+Документация: [postgresql.org/docs/monitoring-stats](https://www.postgresql.org/docs/current/monitoring-stats.html)
+
+Система накопительной статистики Postgresql поддерживает сбор и представление информации об активности сервера. В настоящее время учитываются обращения к таблицам и индексам как в виде дисковых блоков, так и в виде отдельных строк. Также учитывается общее количество строк в каждой таблице и информация о действиях vacuum и analyze для каждой таблицы. Если эта функция включена, также учитываются вызовы пользовательских функций и общее время, затраченное на выполнение каждой из них.
+
+> PostgreSQL also supports reporting dynamic information about exactly what is going on in the system right now, such as the exact command currently being executed by other server processes, and which other connections exist in the system. This facility is independent of the cumulative statistics system.
+
+### pg_stat_activity
+
+> The pg_stat_activity view will have one row per server process, showing information related to the current activity of that process, such as state and current query.
+
+Можно использовать `pg_stat_activity` для анализа и диагностики запущенных задач PostgreSQL.
+
+Например, для просмотра имен пользователей и соответствующих клиентов:
+
+```sql
+SELECT datname, usename, client_addr, client_port FROM pg_stat_activity;
+```
+
+Найти долго выполняющиеся запросы:
+
+```sql
+SELECT
+    datname, usename, state, pid, query, NOW() - query_start AS elapsed
+FROM
+    pg_stat_activity
+ORDER BY
+    elapsed DESC;
+```
