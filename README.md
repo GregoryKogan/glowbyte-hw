@@ -124,3 +124,70 @@ tar -xzf backup.tar -C .
 Заметка из документации:
 
 > pg_dump and pg_dumpall do not produce file-system-level backups and cannot be used as part of a continuous-archiving solution. Such dumps are logical and do not contain enough information to be used by WAL replay.
+
+## VACUUM, VACUUM FULL, ANALYZE
+
+Документация: [postgresql.org/docs/routine-vacuuming](https://www.postgresql.org/docs/current/routine-vacuuming.html)
+
+> PostgreSQL databases require periodic maintenance known as vacuuming. For many installations, it is sufficient to let vacuuming be performed by the autovacuum daemon, which is described in Section 24.1.6. You might need to adjust the autovacuuming parameters described there to obtain best results for your situation. Some database administrators will want to supplement or replace the daemon's activities with manually-managed VACUUM commands, which typically are executed according to a schedule by cron or Task Scheduler scripts.
+
+### VACUUM
+
+> VACUUM — garbage-collect and optionally analyze a database
+
+`VACUUM` приходится регулярно обрабатывать каждую таблицу по нескольким причинам:
+
+- Для восстановления или повторного использования дискового пространства, занятого обновленными или удаленными строками.
+- Для обновления статистики, используемой планировщиком запросов PostgreSQL (опционально вызывает `ANALYZE`).
+- Для обновления карты видимости, которая ускоряет сканирование только по индексу.
+- Для защиты от потери очень старых данных из-за переполнения ID транзакции или multixactID.
+
+`VACUUM` создает значительный объем трафика ввода-вывода, что может привести к снижению производительности других активных сеансов. Существуют параметры конфигурации, которые можно настроить, чтобы уменьшить влияние фоновой очистки на производительность.
+
+> Since transaction IDs have limited size (32 bits) a cluster that runs for a long time (more than 4 billion transactions) would suffer transaction ID wraparound: the XID counter wraps around to zero, and all of a sudden transactions that were in the past appear to be in the future — which means their output become invisible. In short, catastrophic data loss. (Actually the data is still there, but that's cold comfort if you cannot get at it.) To avoid this, it is necessary to vacuum every table in every database at least once every two billion transactions.
+
+### VACUUM FULL
+
+> There are two variants of VACUUM: standard VACUUM and VACUUM FULL. VACUUM FULL can reclaim more disk space but runs much more slowly. Also, the standard form of VACUUM can run in parallel with production database operations. (Commands such as SELECT, INSERT, UPDATE, and DELETE will continue to function normally, though you will not be able to modify the definition of a table with commands such as ALTER TABLE while it is being vacuumed.) VACUUM FULL requires an ACCESS EXCLUSIVE lock on the table it is working on, and therefore cannot be done in parallel with other use of the table. Generally, therefore, administrators should strive to use standard VACUUM and avoid VACUUM FULL.
+
+Стандартный `VACUUM` удаляет пустые строки в таблицах и индексах и отмечает пространство, доступное для повторного использования в будущем. Однако это не вернет пространство операционной системе, за исключением некоторых особых случаев. В отличие от этого, `VACUUM FULL` активно сжимает таблицы, записывая полностью новую версию файла таблицы без пустого пространства. Это минимизирует размер таблицы, но может занять много времени. Это также требует дополнительного места на диске для новой копии таблицы до завершения операции.
+
+> The usual goal of routine vacuuming is to do standard VACUUMs often enough to avoid needing VACUUM FULL. The autovacuum daemon attempts to work this way, and in fact will never issue VACUUM FULL. In this approach, the idea is not to keep tables at their minimum size, but to maintain steady-state usage of disk space: each table occupies space equivalent to its minimum size plus however much space gets used up between vacuum runs. Although VACUUM FULL can be used to shrink a table back to its minimum size and return the disk space to the operating system, there is not much point in this if the table will just grow again in the future. Thus, moderately-frequent standard VACUUM runs are a better approach than infrequent VACUUM FULL runs for maintaining heavily-updated tables.
+
+### ANALYZE
+
+> ANALYZE — collect statistics about a database
+
+`ANALYZE` собирает статистические данные о содержимом таблиц в базе данных и сохраняет результаты в системном каталоге pg_statistic. Впоследствии планировщик запросов использует эти статистические данные для определения наиболее эффективных планов выполнения запросов.
+
+Как и при очистке данных с целью освобождения места, частое обновление статистики более полезно для часто обновляемых таблиц, чем для редко обновляемых. Но даже для часто обновляемой таблицы может не потребоваться обновление статистики, если статистическое распределение данных не сильно меняется.
+
+> It is possible to run ANALYZE on specific tables and even just specific columns of a table, so the flexibility exists to update some statistics more frequently than others if your application requires it. In practice, however, it is usually best to just analyze the entire database, because it is a fast operation. ANALYZE uses a statistically random sampling of the rows of a table rather than reading every single row.
+
+## Блокировки
+
+Документация: [postgresql.org/docs/explicit-locking](https://www.postgresql.org/docs/current/explicit-locking.html)
+
+PostgreSQL предоставляет различные режимы блокировки для управления параллельным доступом к данным в таблицах. Эти режимы могут использоваться в ситуациях, когда `MVCC` не обеспечивает желаемого поведения. Кроме того, большинство команд PostgreSQL автоматически используют соответствующие блокировки, чтобы гарантировать, что задействованные таблицы не будут удалены или изменены несовместимым образом во время выполнения команды.
+
+> To examine a list of the currently outstanding locks in a database server, use the pg_locks system view.
+
+### Table-Level Locks
+
+> You can also acquire any of these locks explicitly with the command LOCK.
+
+Документация команды `LOCK`: [postgresql.org/docs/sql-lock](https://www.postgresql.org/docs/current/sql-lock.html)
+
+> The only real difference between one lock mode and another is the set of lock modes with which each conflicts. Two transactions cannot hold locks of conflicting modes on the same table at the same time. (However, a transaction never conflicts with itself. For example, it might acquire ACCESS EXCLUSIVE lock and later acquire ACCESS SHARE lock on the same table.) Non-conflicting lock modes can be held concurrently by many transactions. Notice in particular that some lock modes are self-conflicting (for example, an ACCESS EXCLUSIVE lock cannot be held by more than one transaction at a time) while others are not self-conflicting (for example, an ACCESS SHARE lock can be held by multiple transactions).
+
+![Conflicting Lock Modes](/assets/Conflicting%20Lock%20Modes.png)
+
+### Row-Level Locks
+
+> Transaction can hold conflicting locks on the same row, even in different subtransactions; but other than that, two transactions can never hold conflicting locks on the same row. Row-level locks do not affect data querying; they block only writers and lockers to the same row. Row-level locks are released at transaction end or during savepoint rollback, just like table-level locks.
+
+![Conflicting Row-Level Locks](assets/Conflicting%20Row-Level%20Locks.png)
+
+### Deadlocks
+
+> The use of explicit locking can increase the likelihood of deadlocks, wherein two (or more) transactions each hold locks that the other wants. For example, if transaction 1 acquires an exclusive lock on table A and then tries to acquire an exclusive lock on table B, while transaction 2 has already exclusive-locked table B and now wants an exclusive lock on table A, then neither one can proceed. PostgreSQL automatically detects deadlock situations and resolves them by aborting one of the transactions involved, allowing the other(s) to complete. (Exactly which transaction will be aborted is difficult to predict and should not be relied upon.)
