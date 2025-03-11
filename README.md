@@ -107,3 +107,20 @@ tar -cf backup.tar ./docker/pgdata
 ```shell
 tar -xzf backup.tar -C .
 ```
+
+### Continuous Archiving and Point-in-Time Recovery (PITR)
+
+> At all times, PostgreSQL maintains a write ahead log (WAL) in the pg_wal/ subdirectory of the cluster's data directory. The log records every change made to the database's data files. This log exists primarily for crash-safety purposes: if the system crashes, the database can be restored to consistency by “replaying” the log entries made since the last checkpoint. However, the existence of the log makes it possible to use a third strategy for backing up databases: we can combine a file-system-level backup with backup of the WAL files. If recovery is needed, we restore the file system backup and then replay from the backed-up WAL files to bring the system to a current state.
+
+#### Особенности
+
+- Нет нужды в идеально консистентном файловом бекапе в качестве начальной точки. Все внутренние несогласованности будут исправлены при проигрывании лога (процесс не принципиально отличается от аварийного восстановления). Достаточно `tar` или чего-то вроде.
+- Поскольку мы можем комбинировать бесконечно длинную последовательность файлов WAL для воспроизведения, можно обеспечить непрерывное резервное копирование, просто продолжая архивировать файлы WAL. Это особенно ценно для больших баз данных, где может быть неудобно часто выполнять полное резервное копирование.
+- Нет необходимости воспроизводить записи WAL до конца. Мы можем остановить воспроизведение в любой момент и получить согласованный снимок базы данных в том виде, в каком она была на тот момент. Таким образом, этот метод поддерживает восстановление в определенный момент времени: можно восстановить базу данных до ее состояния в любой момент с момента создания базовой резервной копии.
+- Если мы постоянно передаем серию файлов WAL на другую машину, на которую был загружен тот же базовый файл резервной копии, у нас есть система "теплого ожидания": в любой момент мы можем запустить вторую машину, и у нее будет почти текущая копия базы данных.
+- Работает только для полного резервного копирования и восстановления всего кластера.
+- Большие размеры файлов
+
+Заметка из документации:
+
+> pg_dump and pg_dumpall do not produce file-system-level backups and cannot be used as part of a continuous-archiving solution. Such dumps are logical and do not contain enough information to be used by WAL replay.
