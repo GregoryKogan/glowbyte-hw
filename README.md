@@ -25,6 +25,8 @@
   - [Deadlocks](#deadlocks)
 - [MVCC](#mvcc)
   - [Transaction Isolation](#transaction-isolation)
+- [Сервисные таблицы](#сервисные-таблицы)
+  - [pg_stat_activity](#pg_stat_activity)
 
 ## Задания
 
